@@ -130,3 +130,21 @@ def test_cli_follow_writes_editor_state(tmp_path, capsys):
                  "-o", str(tmp_path / "x.json")]) == 0
     sc = json.loads((tmp_path / "x.json").read_text(encoding="utf-8"))["scenes"][0]
     assert (sc["exportStartTicks"], sc["exportEndTicks"]) == (40, 120)
+
+
+def test_trail_camera_only_uses_former_player_positions(tmp_path):
+    from autocinematic.camera import trail_scene
+
+    def corner(t):  # 100 Ticks nach +X, dann um die Ecke nach +Z
+        return (0.25 * min(t, 100), 64.0, 0.25 * max(0, t - 100))
+    tr = read_player_track(write_replay(tmp_path, build_chunk(corner, 260, other=False), 260))
+    sc, rep = trail_scene(tr, 60, 240, distance=4.5)
+    path = {(round(s.x, 3), round(s.z, 3)) for s in tr.samples}
+    kfs = sc["keyframeTracks"][0]["keyframesByTick"]
+    for t, kf in kfs.items():
+        x, y, z = kf["position"]
+        assert (round(x, 3), round(z, 3)) in path, "Kamera steht nicht auf dem Spielerweg"
+        assert y == pytest.approx(64 + 1.5)
+        px, _, pz = corner(int(t))
+        assert math.dist((x, z), (px, pz)) <= 4.5 + 0.3   # hinter dem Spieler, Abstand entlang des Weges
+    assert rep["mode"] == "trail"

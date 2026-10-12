@@ -277,6 +277,50 @@ def orbit_scene_for_marker(tick: int, pos: Vec, *, seconds: float = 6.0, radius:
     return make_scene(name or f"AC Orbit Tick {tick}", [make_track(TRACK_ORBIT, kfs, "AutoCinematic Orbit")], s, e)
 
 
+def trail_scene(track, start: int, end: int, *, distance: float = 4.5, cam_height: float = 1.5,
+                step: int = 5, name: Optional[str] = None) -> tuple[dict, dict]:
+    """Kollisionsfreie Verfolgerkamera: Die Kamera faehrt auf dem EIGENEN Weg des Spielers hinterher.
+
+    Wo der Spieler vor kurzem war, war Platz fuer seinen Koerper (1,8 Bloecke hoch) -> eine Kamera
+    in 1,5 Bloecken Hoehe ueber einem frueheren Wegpunkt steckt nicht in einem Block (Ausnahme:
+    Bloecke, die danach gesetzt wurden). Abstand = `distance` Bloecke entlang des Weges.
+    """
+    if end - start < 20:
+        raise CameraError("Zeitfenster zu kurz fuer eine Verfolgerkamera")
+    pts = [s for s in track.samples if s.tick <= end]
+    if len(pts) < 2:
+        raise CameraError("Keine aufgezeichneten Spielerpositionen im Zeitfenster")
+    # kumulierte Wegstrecke
+    cum = [0.0]
+    for a, b in zip(pts, pts[1:], strict=False):
+        cum.append(cum[-1] + math.dist(a.pos, b.pos))
+    ticks = [p.tick for p in pts]
+    import bisect
+
+    kfs: dict[int, dict] = {}
+    fallback_ticks = 0
+    for t in list(range(start, end, step)) + [end]:
+        i = max(0, bisect.bisect_right(ticks, t) - 1)
+        player = pts[i]
+        target_len = cum[i] - distance
+        if target_len <= 0:
+            cam_base = pts[0]
+            fallback_ticks += 1 if cum[i] < distance * 0.5 else 0
+        else:
+            k = bisect.bisect_left(cum, target_len)
+            cam_base = pts[max(0, k)]
+        cam = _add(cam_base.pos, (0, cam_height, 0))
+        eye = _add(player.pos, (0, EYE, 0))
+        if math.dist(cam, eye) < 1.0:  # Spieler steht noch am Startpunkt: leicht erhoeht hinter ihm
+            d = direction_from_yaw_pitch(player.yaw, 0.0)
+            cam = _add(cam, (-d[0] * 0.01, 0.0, -d[2] * 0.01))
+        kfs[t] = kf_camera(cam, *look_at(cam, eye))
+    report = {"mode": "trail", "verified": "frei laut Spielerweg (ausser spaeter gesetzte Bloecke)",
+              "keyframes": len(kfs), "ticksNearStart": fallback_ticks}
+    return (make_scene(name or f"AC Verfolger (Weg) {start}-{end}",
+                       [make_track(TRACK_CAMERA, kfs, "AutoCinematic Weg-Kamera")], start, end), report)
+
+
 def follow_scene(track, start: int, end: int, *, distance: float = 5.0, height: float = 2.0,
                  side: float = 1.2, step: int = 10, smooth: int = 12, name: Optional[str] = None) -> dict:
     """Verfolgerkamera entlang des ECHTEN Laufwegs (Positionen aus der Aufnahme).

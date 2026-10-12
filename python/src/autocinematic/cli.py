@@ -93,7 +93,7 @@ def cmd_camera(args) -> int:
     if not info.uuid:
         raise CameraError("Replay hat keine UUID - Flashback kann den Editorzustand nicht zuordnen")
     if args.follow:
-        from .camera import follow_scene
+        from .camera import follow_scene, trail_scene
         from .replaydata import best_motion_window, read_player_track
         track = read_player_track(args.replay)
         if args.start is not None:
@@ -103,9 +103,13 @@ def cmd_camera(args) -> int:
         else:
             s, e, dist = best_motion_window(track, args.seconds)
         e = min(e, info.total_ticks or e)
-        state = make_editor_state([follow_scene(track, s, e)])
-        report = {"mode": "follow", "startTick": s, "endTick": e, "playerUuid": track.uuid,
-                  "samples": len(track.samples), "blocksInWindow": dist}
+        if args.follow_mode == "trail":
+            scene, extra = trail_scene(track, s, e)
+        else:
+            scene, extra = follow_scene(track, s, e), {"mode": "offset", "verified": False}
+        state = make_editor_state([scene])
+        report = {"startTick": s, "endTick": e, "playerUuid": track.uuid,
+                  "samples": len(track.samples), "blocksInWindow": dist, **extra}
     elif args.orbit_markers:
         scenes, reports = [], []
         for tick, m in sorted(info.markers.items()):
@@ -193,6 +197,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Minimaltest: Orbit um jeden Marker mit gespeicherter Position")
     s.add_argument("--follow", action="store_true",
                    help="Verfolgerkamera entlang des echten Laufwegs (bewegtester Abschnitt, falls --start fehlt)")
+    s.add_argument("--follow-mode", choices=["trail", "offset"], default="trail",
+                   help="trail = auf dem eigenen Weg hinterher (kollisionsfrei), offset = feste Position")
     s.add_argument("--start", type=float, help="Startsekunde (mit --follow)")
     s.add_argument("--end", type=float, help="Endsekunde (mit --follow)")
     s.add_argument("--seconds", type=float, default=8.0, help="Laenge in Sekunden (mit --follow)")
