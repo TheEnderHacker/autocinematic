@@ -16,6 +16,8 @@ from typing import Iterable, Iterator, Optional, Sequence
 SCHEMA_VERSION = 1
 TICKS_PER_SECOND = 20
 EVENT_TYPES = ("shot", "hit", "kill")
+# Zusatzzeilen des Server-Recorders (Flugbahnen, Sitzungsinfos) - werden von read_jsonl uebersprungen
+AUX_TYPES = ("trajectory", "session")
 WEAPON_CLASSES = ("sniper", "rifle", "shotgun", "pistol", "explosive", "flame", "melee", "other")
 
 Vec3 = tuple[float, float, float]
@@ -225,7 +227,10 @@ def read_jsonl(path: str | Path) -> list[CombatEvent]:
             if not line or line.startswith("#"):
                 continue
             try:
-                events.append(CombatEvent.from_dict(json.loads(line)))
+                rec = json.loads(line)
+                if isinstance(rec, dict) and rec.get("type") in AUX_TYPES:
+                    continue
+                events.append(CombatEvent.from_dict(rec))
             except (json.JSONDecodeError, EventError) as exc:
                 raise EventError(f"{path}:{no}: {exc}") from None
     return events

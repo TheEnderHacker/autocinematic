@@ -1,0 +1,17 @@
+# EnderNation AutoCinematic Recorder
+# Liest nur mit. Veraendert keine Waffen, Projektile, Schaeden oder Spielregeln.
+
+# Aufnahme beim Serverstart aktiv? (zur Laufzeit: /acrec on|off)
+enabled: true
+
+# Unterordner im Plugin-Ordner fuer die JSONL-Dateien (eine pro Server-Start)
+output-folder: sessions
+
+# Eigene Sitzungsdateien, die aelter sind, werden beim Start entfernt (0 = nie)
+retention-days: 7
+
+# Flugbahn jedes Projektils pro Tick aufzeichnen (fuer die Projektil-Kamera)
+track-projectiles: true
+
+# Maximale Aufzeichnungsdauer pro Projektil in Ticks (Sniper: ca. 27 Ticks bis Reichweite)
+max-projectile-ticks: 60

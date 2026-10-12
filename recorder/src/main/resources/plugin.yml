@@ -1,0 +1,16 @@
+name: AutoCinematicRecorder
+main: net.endernation.autocinematic.recorder.AutoCinematicRecorder
+version: '${version}'
+api-version: '1.21'
+description: Zeichnet SwornGuns-Kampfereignisse fuer EnderNation AutoCinematic auf (nur lesend).
+author: EnderNation
+softdepend: [SwornGuns]
+commands:
+  acrec:
+    description: AutoCinematic-Aufnahme an/aus/Status
+    usage: /acrec <on|off|status>
+    permission: autocinematic.admin
+permissions:
+  autocinematic.admin:
+    description: AutoCinematic Recorder steuern
+    default: op

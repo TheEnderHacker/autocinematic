@@ -145,6 +145,35 @@ def cmd_camera(args) -> int:
     return 0
 
 
+def _server_files(paths: Sequence[str]) -> list[Path]:
+    files: list[Path] = []
+    for raw in paths:
+        p = Path(raw)
+        files.extend(sorted(p.glob("ac-*.jsonl")) if p.is_dir() else [p])
+    if not files:
+        raise EventError("Keine Server-Ereignisdateien (ac-*.jsonl) gefunden")
+    return files
+
+
+def cmd_sync(args) -> int:
+    from .replaydata import read_player_track
+    from .sync import load_server_records, sync_records
+
+    track = read_player_track(args.replay)
+    if not track.clock:
+        raise EventError("Replay enthaelt keine Echtzeit-Uhr - Zuordnung nur mit --anchor-tick/--anchor-ms moeglich")
+    records = []
+    for f in _server_files(args.events):
+        records.extend(load_server_records(f))
+    events, report = sync_records(records, track, offset_ms=args.offset_ms)
+    n = write_jsonl(args.out, events)
+    report.update({"out": str(args.out), "written": n})
+    if args.report:
+        Path(args.report).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    _print_json(report)
+    return 0
+
+
 def cmd_demo(args) -> int:
     from .demo import demo_events, write_demo_replay
     out = Path(args.out)
@@ -207,6 +236,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--force", action="store_true", help="vorhandenen Editorzustand ersetzen (mit Sicherung)")
     s.add_argument("--report", help="Bericht (JSON) mit Warnungen pro Einstellung")
     s.set_defaults(func=cmd_camera)
+
+    s = sub.add_parser("sync", help="Server-Ereignisse (Recorder) per Replay-Uhr auf Replay-Ticks abbilden")
+    s.add_argument("--replay", required=True)
+    s.add_argument("--events", required=True, nargs="+", help="ac-*.jsonl Dateien oder der sessions-Ordner")
+    s.add_argument("-o", "--out", required=True, help="Ergebnis: Ereignisse mit Tick (JSONL)")
+    s.add_argument("--offset-ms", type=int, help="Uhrenversatz fest vorgeben (sonst automatisch geschaetzt)")
+    s.add_argument("--report", help="Bericht (JSON)")
+    s.set_defaults(func=cmd_sync)
 
     s = sub.add_parser("demo", help="Synthetisches Test-Replay + Ereignisse erzeugen")
     s.add_argument("-o", "--out", required=True)

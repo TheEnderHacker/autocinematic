@@ -1,0 +1,33 @@
+plugins {
+    id 'java'
+}
+
+group = 'net.endernation'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    // Gleiche API-Version wie SwornGuns (ai-dev); laeuft auch auf 26.3-Servern (api-version 1.21)
+    compileOnly 'io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+    options.compilerArgs += ['-Xlint:all', '-Werror']
+}
+
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset = 'UTF-8'
+    filesMatching('plugin.yml') { expand props }
+}
+
+jar {
+    archiveFileName = "AutoCinematicRecorder-${version}.jar"
+}
