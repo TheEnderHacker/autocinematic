@@ -277,6 +277,48 @@ def orbit_scene_for_marker(tick: int, pos: Vec, *, seconds: float = 6.0, radius:
     return make_scene(name or f"AC Orbit Tick {tick}", [make_track(TRACK_ORBIT, kfs, "AutoCinematic Orbit")], s, e)
 
 
+def follow_scene(track, start: int, end: int, *, distance: float = 5.0, height: float = 2.0,
+                 side: float = 1.2, step: int = 10, smooth: int = 12, name: Optional[str] = None) -> dict:
+    """Verfolgerkamera entlang des ECHTEN Laufwegs (Positionen aus der Aufnahme).
+
+    Ziel = geglaettete Spielerposition; Kamera steht hinter/ueber/seitlich davon in
+    Bewegungsrichtung und schaut auf Kopfhoehe. Keyframes alle `step` Ticks (SMOOTH).
+    """
+    if end - start < 20:
+        raise CameraError("Zeitfenster zu kurz fuer eine Verfolgerkamera")
+    samples = [s for s in track.samples if start - smooth - 1 <= s.tick <= end + smooth + 1]
+    if len(samples) < 2:
+        raise CameraError("Im Zeitfenster gibt es keine aufgezeichneten Spielerpositionen")
+
+    def avg_pos(t: int) -> Vec:
+        win = [s for s in samples if abs(s.tick - t) <= smooth] or [track.at(t)]
+        win = [w for w in win if w is not None]
+        return tuple(sum(c) / len(win) for c in zip(*(w.pos for w in win), strict=True))  # type: ignore[return-value]
+
+    kfs: dict[int, dict] = {}
+    last_dir = None
+    ticks = list(range(start, end, step)) + [end]
+    for t in ticks:
+        p = avg_pos(t)
+        a, b = avg_pos(max(start, t - step)), avg_pos(min(end, t + step))
+        dx, dz = b[0] - a[0], b[2] - a[2]
+        if math.hypot(dx, dz) > 0.3:
+            fx, fz = _norm_xz(dx, dz)
+        elif last_dir is not None:
+            fx, fz = last_dir
+        else:
+            s = track.at(t)
+            d = direction_from_yaw_pitch(s.yaw if s else 0.0, 0.0)
+            fx, fz = _norm_xz(d[0], d[2])
+        last_dir = (fx, fz)
+        eye = _add(p, (0, EYE, 0))
+        right = (-fz, 0.0, fx)
+        cam = _add(_add(eye, _mul((fx, 0.0, fz), -distance)), _add(_mul(right, side), (0, height - 0.6, 0)))
+        kfs[t] = kf_camera(cam, *look_at(cam, eye))
+    return make_scene(name or f"AC Verfolger {start}-{end}",
+                      [make_track(TRACK_CAMERA, kfs, "AutoCinematic Verfolger")], start, end)
+
+
 # ----------------------------------------------------------------- Schreiben
 def build_editor_state(info: ReplayInfo, plan: dict, events: list[CombatEvent]) -> tuple[dict, dict]:
     scenes, reports = [], []

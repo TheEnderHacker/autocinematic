@@ -92,7 +92,21 @@ def cmd_camera(args) -> int:
     info = read_replay(args.replay)
     if not info.uuid:
         raise CameraError("Replay hat keine UUID - Flashback kann den Editorzustand nicht zuordnen")
-    if args.orbit_markers:
+    if args.follow:
+        from .camera import follow_scene
+        from .replaydata import best_motion_window, read_player_track
+        track = read_player_track(args.replay)
+        if args.start is not None:
+            s = int(args.start * 20)
+            e = int((args.end if args.end is not None else args.start + args.seconds) * 20)
+            dist = None
+        else:
+            s, e, dist = best_motion_window(track, args.seconds)
+        e = min(e, info.total_ticks or e)
+        state = make_editor_state([follow_scene(track, s, e)])
+        report = {"mode": "follow", "startTick": s, "endTick": e, "playerUuid": track.uuid,
+                  "samples": len(track.samples), "blocksInWindow": dist}
+    elif args.orbit_markers:
         scenes, reports = [], []
         for tick, m in sorted(info.markers.items()):
             if m.position is None:
@@ -177,6 +191,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--events", help="zusaetzliche Ereignisse (JSONL)")
     s.add_argument("--orbit-markers", action="store_true",
                    help="Minimaltest: Orbit um jeden Marker mit gespeicherter Position")
+    s.add_argument("--follow", action="store_true",
+                   help="Verfolgerkamera entlang des echten Laufwegs (bewegtester Abschnitt, falls --start fehlt)")
+    s.add_argument("--start", type=float, help="Startsekunde (mit --follow)")
+    s.add_argument("--end", type=float, help="Endsekunde (mit --follow)")
+    s.add_argument("--seconds", type=float, default=8.0, help="Laenge in Sekunden (mit --follow)")
     s.add_argument("--flashback-dir", help="z. B. ...\\instances\\<name>\\minecraft\\flashback")
     s.add_argument("-o", "--out", help="statt --flashback-dir: Zieldatei")
     s.add_argument("--force", action="store_true", help="vorhandenen Editorzustand ersetzen (mit Sicherung)")
