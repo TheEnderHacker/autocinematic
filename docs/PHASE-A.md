@@ -131,7 +131,7 @@ Grundsätze dieser Architektur:
 
 ## 10. In Phase A umgesetzt und getestet
 
-Python-Paket `python/` (ohne Abhängigkeiten, getestet mit 56 Tests unter Python 3.11, 3.12 und 3.13):
+Python-Paket `python/` (ohne Abhängigkeiten, getestet mit 57 Tests unter Python 3.11, 3.12 und 3.13):
 
 - `events`: Ereignisschema v1 (`schema/combat-event.v1.schema.json`), Waffenklassen aus SwornGuns-Namen, JSONL (auch mit BOM unter Windows), Zeitanker-Synchronisation
 - `flashback`:
