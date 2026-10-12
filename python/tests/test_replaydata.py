@@ -6,7 +6,7 @@ import zipfile
 
 import pytest
 
-from autocinematic.camera import follow_scene, look_at
+from autocinematic.camera import camera_eye, follow_scene, look_at
 from autocinematic.cli import main
 from autocinematic.replaydata import (
     MAGIC, ReplayDataError, best_motion_window, find_teleports, read_player_track,
@@ -107,7 +107,7 @@ def test_follow_camera_stays_behind_and_looks_at_player(tmp_path):
     assert sc["exportStartTicks"] == 40 and sc["exportEndTicks"] == 160 and "160" in kfs
     for t, kf in kfs.items():
         px = 0.2 * int(t)
-        cam = kf["position"]
+        cam = camera_eye(kf)
         assert cam[0] < px - 3          # hinter dem Spieler (er laeuft nach +X)
         assert cam[1] > 64 + 1.6        # ueber Kopfhoehe
         yaw, pitch = look_at(tuple(cam), (px, 64 + 1.62, 0.0))
@@ -142,9 +142,27 @@ def test_trail_camera_only_uses_former_player_positions(tmp_path):
     path = {(round(s.x, 3), round(s.z, 3)) for s in tr.samples}
     kfs = sc["keyframeTracks"][0]["keyframesByTick"]
     for t, kf in kfs.items():
-        x, y, z = kf["position"]
+        x, y, z = camera_eye(kf)
         assert (round(x, 3), round(z, 3)) in path, "Kamera steht nicht auf dem Spielerweg"
         assert y == pytest.approx(64 + 1.5)
+        assert kf["position"][1] == pytest.approx(64 + 1.5 - 1.62)  # Flashback: Fuss-Position
         px, _, pz = corner(int(t))
         assert math.dist((x, z), (px, pz)) <= 4.5 + 0.3   # hinter dem Spieler, Abstand entlang des Weges
     assert rep["mode"] == "trail"
+
+
+def test_trail_camera_damps_jumps_but_stays_in_body_volume(tmp_path):
+    from autocinematic.camera import trail_scene
+
+    def hop(t):  # laeuft nach +X und springt alle 12 Ticks 1,25 Bloecke hoch
+        phase = t % 12
+        return (0.25 * t, 64.0 + (1.25 * math.sin(math.pi * phase / 12) if phase else 0.0), 0.0)
+    tr = read_player_track(write_replay(tmp_path, build_chunk(hop, 300, other=False), 300))
+    sc, _ = trail_scene(tr, 60, 280)
+    kfs = sc["keyframeTracks"][0]["keyframesByTick"]
+    heights = [camera_eye(kf)[1] for kf in kfs.values()]
+    assert max(heights) - min(heights) < 0.3, "Kamera wippt noch"
+    for kf in kfs.values():
+        x, y, _ = camera_eye(kf)
+        base = next(s for s in tr.samples if abs(s.x - x) < 1e-6)
+        assert base.y + 0.2 - 1e-6 <= y <= base.y + 1.7 + 1e-6   # innerhalb des frueheren Koerpervolumens

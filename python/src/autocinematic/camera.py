@@ -76,9 +76,18 @@ def direction_from_yaw_pitch(yaw: float, pitch: float) -> Vec:
 
 
 # ------------------------------------------------------- Flashback-JSON-Bausteine
-def kf_camera(pos: Vec, yaw: float, pitch: float, roll: float = 0.0, interp: str = "SMOOTH") -> dict:
+def kf_camera(eye: Vec, yaw: float, pitch: float, roll: float = 0.0, interp: str = "SMOOTH") -> dict:
+    """`eye` = gewuenschte Kameraposition (Augpunkt). Flashback setzt die Keyframe-Position wie die
+    FUESSE der Kamerafigur und blickt aus Augenhoehe (+1,62) -> hier umrechnen (in Phase B gemessen)."""
+    pos = (eye[0], eye[1] - EYE, eye[2])
     return {"position": [round(c, 4) for c in pos], "yaw": yaw, "pitch": pitch, "roll": roll,
             "type": "camera", "interpolation_type": interp}
+
+
+def camera_eye(kf: dict) -> Vec:
+    """Tatsaechlicher Augpunkt eines CAMERA-Keyframes."""
+    x, y, z = kf["position"]
+    return (x, y + EYE, z)
 
 
 def kf_orbit(center: Vec, distance: float, yaw: float, pitch: float, interp: str = "SMOOTH") -> dict:
@@ -278,7 +287,7 @@ def orbit_scene_for_marker(tick: int, pos: Vec, *, seconds: float = 6.0, radius:
 
 
 def trail_scene(track, start: int, end: int, *, distance: float = 4.5, cam_height: float = 1.5,
-                step: int = 5, name: Optional[str] = None) -> tuple[dict, dict]:
+                step: int = 5, damp_ticks: int = 15, name: Optional[str] = None) -> tuple[dict, dict]:
     """Kollisionsfreie Verfolgerkamera: Die Kamera faehrt auf dem EIGENEN Weg des Spielers hinterher.
 
     Wo der Spieler vor kurzem war, war Platz fuer seinen Koerper (1,8 Bloecke hoch) -> eine Kamera
@@ -309,8 +318,15 @@ def trail_scene(track, start: int, end: int, *, distance: float = 4.5, cam_heigh
         else:
             k = bisect.bisect_left(cum, target_len)
             cam_base = pts[max(0, k)]
-        cam = _add(cam_base.pos, (0, cam_height, 0))
-        eye = _add(player.pos, (0, EYE, 0))
+        # Hoehe gegen Wippen (Spruenge, Double-Jump) daempfen, aber nur innerhalb des Koerpervolumens
+        # (Fuesse .. Fuesse+1,8) am Wegpunkt -> bleibt kollisionsfrei.
+        ys = [q.pos[1] for q in pts if abs(q.tick - cam_base.tick) <= damp_ticks]
+        y_smooth = min(ys) if ys else cam_base.y  # Bodenhoehe im Umfeld
+        cam_y = min(max(y_smooth + cam_height, cam_base.y + 0.2), cam_base.y + 1.7)
+        cam = (cam_base.x, cam_y, cam_base.z)
+        tys = [q.pos[1] for q in pts if abs(q.tick - player.tick) <= damp_ticks]
+        look_y = (min(tys) if tys else player.y) + EYE
+        eye = (player.x, look_y, player.z)
         if math.dist(cam, eye) < 1.0:  # Spieler steht noch am Startpunkt: leicht erhoeht hinter ihm
             d = direction_from_yaw_pitch(player.yaw, 0.0)
             cam = _add(cam, (-d[0] * 0.01, 0.0, -d[2] * 0.01))
