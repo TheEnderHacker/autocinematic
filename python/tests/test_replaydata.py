@@ -166,3 +166,21 @@ def test_trail_camera_damps_jumps_but_stays_in_body_volume(tmp_path):
         x, y, _ = camera_eye(kf)
         base = next(s for s in tr.samples if abs(s.x - x) < 1e-6)
         assert base.y + 0.2 - 1e-6 <= y <= base.y + 1.7 + 1e-6   # innerhalb des frueheren Koerpervolumens
+
+
+def test_trail_camera_keeps_player_in_view_during_big_boost(tmp_path):
+    from autocinematic.camera import direction_from_yaw_pitch, trail_scene
+
+    def boost(t):  # laeuft, wird bei Tick 120-160 um 10 Bloecke hochgeboostet, landet wieder
+        h = 10.0 * math.sin(math.pi * (t - 120) / 40) if 120 <= t <= 160 else 0.0
+        return (0.25 * t, 64.0 + h, 0.0)
+    tr = read_player_track(write_replay(tmp_path, build_chunk(boost, 260, other=False), 260))
+    sc, _ = trail_scene(tr, 60, 240)
+    for t, kf in sc["keyframeTracks"][0]["keyframesByTick"].items():
+        cam = camera_eye(kf)
+        px, py, pz = boost(int(t))
+        to_player = (px - cam[0], py + 1.62 - cam[1], pz - cam[2])
+        n = math.sqrt(sum(c * c for c in to_player)) or 1.0
+        view = direction_from_yaw_pitch(kf["yaw"], kf["pitch"])
+        angle = math.degrees(math.acos(max(-1.0, min(1.0, sum(a * b / n for a, b in zip(view, to_player, strict=True))))))
+        assert angle < 25, f"Spieler bei Tick {t} {angle:.0f} Grad neben der Bildmitte"

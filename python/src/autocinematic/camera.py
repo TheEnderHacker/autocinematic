@@ -287,7 +287,8 @@ def orbit_scene_for_marker(tick: int, pos: Vec, *, seconds: float = 6.0, radius:
 
 
 def trail_scene(track, start: int, end: int, *, distance: float = 4.5, cam_height: float = 1.5,
-                step: int = 5, damp_ticks: int = 15, name: Optional[str] = None) -> tuple[dict, dict]:
+                step: int = 5, damp_ticks: int = 15, look_smooth: int = 4,
+                name: Optional[str] = None) -> tuple[dict, dict]:
     """Kollisionsfreie Verfolgerkamera: Die Kamera faehrt auf dem EIGENEN Weg des Spielers hinterher.
 
     Wo der Spieler vor kurzem war, war Platz fuer seinen Koerper (1,8 Bloecke hoch) -> eine Kamera
@@ -324,9 +325,11 @@ def trail_scene(track, start: int, end: int, *, distance: float = 4.5, cam_heigh
         y_smooth = min(ys) if ys else cam_base.y  # Bodenhoehe im Umfeld
         cam_y = min(max(y_smooth + cam_height, cam_base.y + 0.2), cam_base.y + 1.7)
         cam = (cam_base.x, cam_y, cam_base.z)
-        tys = [q.pos[1] for q in pts if abs(q.tick - player.tick) <= damp_ticks]
-        look_y = (min(tys) if tys else player.y) + EYE
-        eye = (player.x, look_y, player.z)
+        # Blickziel = tatsaechlicher Spieler (leicht geglaettet), NICHT die Bodenhoehe:
+        # sonst schaut die Kamera bei Boosts auf den Boden und der Spieler faellt aus dem Bild.
+        near = [q for q in pts if abs(q.tick - player.tick) <= look_smooth] or [player]
+        eye = (sum(q.x for q in near) / len(near), sum(q.y for q in near) / len(near) + EYE,
+               sum(q.z for q in near) / len(near))
         if math.dist(cam, eye) < 1.0:  # Spieler steht noch am Startpunkt: leicht erhoeht hinter ihm
             d = direction_from_yaw_pitch(player.yaw, 0.0)
             cam = _add(cam, (-d[0] * 0.01, 0.0, -d[2] * 0.01))
