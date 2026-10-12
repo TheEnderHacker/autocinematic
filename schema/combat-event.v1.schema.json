@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://endernation.net/autocinematic/combat-event.v1.schema.json",
+  "title": "AutoCinematic Kampfereignis v1",
+  "description": "Ein Schuss, Treffer oder Kill. Eine Zeile pro Ereignis in JSONL bzw. eingebettet in Flashback-Marker als [[AC1 {...}]].",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "v": {"const": 1},
+    "type": {"enum": ["shot", "hit", "kill"]},
+    "tick": {"type": "integer", "minimum": 0, "description": "Replay-Tick (20 pro Sekunde)"},
+    "t": {"type": "integer", "description": "Server-Zeitstempel in ms (Unix-Epoche) fuer Zeitanker-Synchronisation"},
+    "shooter": {"$ref": "#/$defs/player"},
+    "target": {"$ref": "#/$defs/player"},
+    "weapon": {"type": "string", "description": "Waffenname ohne Farbcodes, z. B. Sniper"},
+    "weaponClass": {"enum": ["sniper", "rifle", "shotgun", "pistol", "explosive", "flame", "melee", "other"]},
+    "distance": {"type": "number", "minimum": 0},
+    "headshot": {"type": "boolean"},
+    "damage": {"type": "number"},
+    "lethal": {"type": "boolean"},
+    "pos": {"$ref": "#/$defs/vec3", "description": "Position des Schuetzen (Fuesse)"},
+    "targetPos": {"$ref": "#/$defs/vec3", "description": "Position des Ziels bzw. Einschlag"},
+    "dim": {"type": "string", "description": "z. B. minecraft:overworld"},
+    "extra": {"type": "object", "description": "Zusatzdaten, z. B. shotId, pelletIndex, projectileUuid, sessionId"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "player": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {"name": {"type": "string"}, "uuid": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "vec3": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3}
+  }
+}
