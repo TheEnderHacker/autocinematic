@@ -47,7 +47,7 @@ public final class AutoCinematicRecorder extends JavaPlugin {
         CombatListener listener = new CombatListener(this, writer, bridge, tracker);
         getServer().getPluginManager().registerEvents(listener, this);
         listener.registerSwornGunShotEvent();
-        writer.writeSessionStart(getServer().getVersion(), getDescription().getVersion());
+        writer.writeSessionStart(getServer().getVersion(), getPluginMeta().getVersion());
         getLogger().info("AutoCinematic Recorder aktiv (Aufnahme " + (recording ? "AN" : "AUS") + "), Sitzung " + sessionId
                 + ", Ausgabe " + dir);
     }
