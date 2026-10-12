@@ -10,14 +10,14 @@ Stand: 2026-10-12 · Grundlage: realer Quellcode und Modrinth-Daten, keine Annah
   - FFmpeg und Remotion übernehmen den **Schnitt**.
 - **Projektil-Kamera:** Eine echte Sniper-Projektilkamera braucht eine serverseitig aufgezeichnete Flugbahn. Im Replay selbst ist die Flugbahn nur die Vorhersage des Clients (siehe §7).
 - **Der kleinste Kameratest (Phase B)** braucht keinen Server und keine eigene Mod. Es reichen eine Singleplayer-Aufnahme, ein Marker mit Position und unsere erzeugte `editor_states`-Datei. Dann ein Export-Klick in Flashback.
-- **Client-Version:** Für die Aufnahme- und Render-Instanz habe ich **Minecraft 26.2** festgelegt (Begründung in §6).
+- **Client-Version:** Minecraft **26.3**, dieselbe Version wie der Server (siehe §6).
 
 ## 2. Repositories (geprüft)
 
 | Repository | Branch @ Commit | Relevanter Inhalt |
 |---|---|---|
 | EnderNationTeam/minecraft-SwornGuns-V1 | `master` @ de3eb7f | Original-Fork: `SwornGunFireEvent`, `Bullet`, `EntityListener` (Kopfschuss), Waffen-YAMLs |
-| | `endernation` @ 048760a | `paper-api 1.21.11-R0.1-SNAPSHOT`, Java 24, EnderCore 4.0.0. Eine Commit-Nachricht erwähnt „EnderNation 26.3“; das muss geklärt werden. |
+| | `endernation` @ 048760a | `paper-api 1.21.11-R0.1-SNAPSHOT`, Java 24, EnderCore 4.0.0. Live läuft laut dir aber `ai-dev` auf 26.3. |
 | | `ai-dev` @ 29d37ad | zusätzlich `CombatDebug`, `SwornGunShotEvent(player, weaponId, shotId)`, `shotId`/`pelletIndex` im `Bullet`, `HitFeedback` sowie Tests (`CombatDebugJsonlTest` …) |
 | EnderNationTeam/minecraft-server-enderguns | `master` @ 5954f0c | EnderGuns-Spielmodus (Folia-API 1.21.11, JDK 25): Kampf-, Tod- und Kit-Logik. `AttackListener` (deprecated) erkennt Treffer über Schneeball-Damager. |
 | EnderNationTeam/EnderGuns-API | `master` @ c7182d7 | nur Manager-Interfaces (`ICombatManager` …), keine Ereignisse |
@@ -85,12 +85,12 @@ Replay- oder Kamera-Komponenten gibt es in keinem dieser Repositories.
 | Flashback Turbo | ARR | 26.1.2–26.3 | schnellere Exporte (Herstellerangabe, ungeprüft) |
 | Flashback Settings | PolyForm-Noncommercial, Telemetrie (Opt-out) | 26.1.2–26.3 | **nicht empfohlen** (nicht-kommerzielle Lizenz für ein Werbeprojekt) |
 
-## 6. Versionen – Entscheidung
+## 6. Versionen – Entscheidung (aktualisiert 2026-10-12)
 
-- **Server:** Die `endernation`-Branch kompiliert gegen `paper-api 1.21.11`. Ob live schon 26.3 läuft, ist **offen (B2)**.
-- **Client = Minecraft 26.2.** Das ist die einzige Version, für die Flashback (0.43.4), CineWolf (2.0.30), Flashbatch, MultiView **und** ViaFabricPlus (5.0.2) gleichzeitig verfügbar sind.
-  - Die Verbindung zu einem 1.21.11-Server läuft clientseitig über ViaFabricPlus oder serverseitig über ViaVersion. Das muss getestet werden.
-  - Mit 1.21.11 als Client wäre nur Flashback 0.39.9 möglich, **ohne** CineWolf.
+- **Live laufen der Server mit Minecraft 26.3 und die SwornGuns-Branch `ai-dev`** (deine Auskunft). Damit stehen `SwornGunShotEvent`, `shotId` und `pelletIndex` direkt zur Verfügung.
+- **Client = Minecraft 26.3** mit Flashback 0.43.6 und CineWolf 2.0.34. Client und Server haben dieselbe Version, ViaFabricPlus ist also nicht nötig.
+- Flashbatch (Stapel-Export) gibt es bisher nur bis 26.2. Unter 26.3 exportierst du jede Szene einzeln oder später über unser eigenes Addon (Stufe 2).
+- Das `editor_states`-Format stammt direkt aus dem gelesenen Quelltext 0.43.6, also genau der Version, die wir einsetzen.
 
 ## 7. Sniper-Projektilkamera – Machbarkeit
 
@@ -112,7 +112,7 @@ Replay- oder Kamera-Komponenten gibt es in keinem dieser Repositories.
 ## 9. Architektur
 
 ```
- Paper/Folia-Server                    Client (Prism, MC 26.2)               E:\AutoCinematic
+ Paper/Folia-Server                    Client (Prism, MC 26.3)               E:\AutoCinematic
  ┌──────────────────────┐  Plugin-   ┌───────────────────────────┐        ┌───────────────────────────┐
  │ SwornGuns (unverändert)│ Message   │ Flashback (Aufnahme/Render)│        │ autocinematic (Python)    │
  │ AutoCinematic Recorder ├──────────►│ AC-Client-Addon:           │ ZIP    │  events · flashback ·     │
@@ -157,17 +157,16 @@ Das ist Phase B.
 | # | Blocker | Was ich brauche |
 |---|---|---|
 | B1 | Claude hat keine Shell auf deinem PC (die lokale Arbeits-VM startet nicht). Alle Windows-Schritte laufen über Skripte, die du startest. | – (Workaround aktiv) |
-| B2 | Unklar, welche SwornGuns-Branch und Serverversion live laufen (`endernation`: paper-api 1.21.11, Commit nennt 26.3). Wird `ai-dev` gemergt? | Antwort |
+| B2 | ~~Serverversion/Branch~~ geklärt: 26.3, `ai-dev` | – |
 | B3 | Zum Bauen von Java-Plugins sind im Cloud-Container Maven Central, PaperMC und das EnderNation-Repo gesperrt. | Java-Builds laufen auf deinem PC |
-| B4 | Für AutoCinematic gibt es kein GitHub-Repository. | Freigabe: `EnderNationTeam/autocinematic` (privat) anlegen, Entwicklungsbranch `dev` |
+| B4 | Das Repository `TheEnderHacker/autocinematic` existiert, aber Claude darf noch nicht pushen. | Claude-GitHub-App für dieses Repository installieren |
 | B5 | Es gibt noch keine echte Flashback-Aufnahme. | eine Singleplayer-Aufnahme (Phase B), später eine PvP-Aufnahme |
 | B6 | Der CineWolf-Quellcode ist nicht öffentlich. | Prüfung des JAR unter Windows |
-| B7 | Das `editor_states`-Format wurde aus 0.43.6 abgeleitet; in 0.43.4 ist es noch unbestätigt. | Phase-B-Test |
-| S | **Sicherheit:** `minecraft-server-enderguns/gradle.properties` enthält Repo-Zugangsdaten im Klartext. | Rotation empfohlen |
+| B7 | Das `editor_states`-Format ist aus dem Quelltext 0.43.6 abgeleitet, aber im Spiel noch nicht geladen worden. | Phase-B-Test |
 
 ## 12. Nächster Schritt: Phase B (kleinster echter Kameratest)
 
-1. `tools\Install-AutoCinematicTools.cmd` richtet Prism portable, die 26.2-Instanz, FFmpeg, uv und Python ein.
+1. `tools\Install-AutoCinematicTools.cmd` richtet Prism portable, die 26.3-Instanz, FFmpeg, uv und Python ein.
 2. Instanz starten, eine Singleplayer-Welt öffnen und ca. 60 s mit Flashback aufnehmen. Dabei **einen Marker mit gespeicherter Position** setzen, dann speichern.
 3. Kamera erzeugen:
    ```
