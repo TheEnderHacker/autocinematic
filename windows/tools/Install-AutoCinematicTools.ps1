@@ -242,7 +242,9 @@ else {
                 Copy-Item -LiteralPath $jar -Destination "$mcDir\mods\$($p.Name)"
                 Result "Mod $($p.Slug)" 'OK' $p.Version
             }
-            $jvm = "-Djava.io.tmpdir=$Root\tmp\java -Dorg.bytedeco.javacpp.cachedir=$Root\cache\javacpp"
+            # Prism liest instance.cfg wie Qt-INI: Backslashes waeren Escape-Zeichen -> nur '/' verwenden
+            $rootFwd = $Root.Replace('\', '/')
+            $jvm = "-Djava.io.tmpdir=$rootFwd/tmp/java -Dorg.bytedeco.javacpp.cachedir=$rootFwd/cache/javacpp"
             @(
                 '[General]'
                 'ConfigVersion=1.2'
@@ -254,7 +256,7 @@ else {
                 'OverrideMemory=true'
                 'MinMemAlloc=2048'
                 "MaxMemAlloc=$MaxMemoryMB"
-                'notes=Von AutoCinematic angelegt. Replays: minecraft\\flashback\\replays'
+                'notes=Von AutoCinematic angelegt. Replays: minecraft/flashback/replays'
             ) | Set-Content -LiteralPath "$InstDir\instance.cfg" -Encoding ASCII
             $pack = @{
                 formatVersion = 1
